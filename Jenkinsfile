@@ -5,7 +5,8 @@ pipeline {
     environment {
         IMAGE = "shop-system"
         CONTAINER = "shop"
-        PORT = "5001"
+        PORT = "5000"
+        PYTHON_EXE = "C:\\Users\\basar\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"
     }
 
     stages {
@@ -21,9 +22,9 @@ pipeline {
             steps {
                 echo 'Installing Python dependencies...'
 
-                bat 'python --version'
+                bat '"%PYTHON_EXE%" --version'
 
-                bat 'python -m venv venv'
+                bat '"%PYTHON_EXE%" -m venv venv'
 
                 bat 'venv\\Scripts\\python.exe -m pip install --upgrade pip'
 
@@ -33,7 +34,7 @@ pipeline {
 
         stage('Lint') {
             steps {
-                echo 'Running Flake8 code quality checks...'
+                echo 'Running Flake8...'
 
                 bat 'venv\\Scripts\\python.exe -m flake8 app.py'
             }
@@ -49,7 +50,7 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                echo 'Building Shop System Docker image...'
+                echo 'Building Docker image...'
 
                 bat 'docker build -t %IMAGE%:%BUILD_NUMBER% -t %IMAGE%:latest .'
             }
@@ -59,16 +60,12 @@ pipeline {
             steps {
                 echo 'Deploying Shop System...'
 
-                // Remove previous container if it exists
                 bat 'docker rm -f %CONTAINER% 2>NUL || ver >NUL'
 
-                // Start new Docker container
                 bat 'docker run -d --name %CONTAINER% -p %PORT%:5000 %IMAGE%:latest'
 
-                // Wait for application startup
                 powershell 'Start-Sleep -Seconds 10'
 
-                // Verify container is running
                 bat 'docker ps --filter "name=%CONTAINER%"'
             }
         }
@@ -90,7 +87,7 @@ pipeline {
         failure {
             echo 'Pipeline failed! Checking Docker logs...'
 
-            bat 'docker logs shop 2>NUL || ver >NUL'
+            bat 'docker logs %CONTAINER% 2>NUL || exit /b 0'
         }
 
         always {
