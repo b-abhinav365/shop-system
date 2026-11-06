@@ -18,23 +18,21 @@ pipeline {
             }
         }
 
-        stage('Install') {
+        stage('Install Dependencies') {
             steps {
                 echo 'Installing Python dependencies...'
 
                 bat '"%PYTHON_EXE%" --version'
-
                 bat '"%PYTHON_EXE%" -m venv venv'
-
                 bat 'venv\\Scripts\\python.exe -m pip install --upgrade pip'
-
-                bat 'venv\\Scripts\\python.exe -m pip install -r requirements.txt flake8 pytest'
+                bat 'venv\\Scripts\\python.exe -m pip install -r requirements.txt'
+                bat 'venv\\Scripts\\python.exe -m pip install flake8 pytest'
             }
         }
 
         stage('Lint') {
             steps {
-                echo 'Running Flake8...'
+                echo 'Running Flake8 code quality checks...'
 
                 bat 'venv\\Scripts\\python.exe -m flake8 app.py'
             }
@@ -50,7 +48,7 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                echo 'Building Docker image...'
+                echo 'Building Shop System Docker image...'
 
                 bat 'docker build -t %IMAGE%:%BUILD_NUMBER% -t %IMAGE%:latest .'
             }
@@ -58,24 +56,54 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                echo 'Deploying Shop System...'
+                echo 'Removing previous Shop container and deploying new version...'
 
-                // Remove existing container if present
                 powershell '''
-                    $existing = docker ps -aq --filter "name=^shop$"
-        
-                    if ($existing) {
-                        docker rm -f shop
+                    $ErrorActionPreference = "Stop"
+
+                    $maxAttempts = 10
+                    $removed = $false
+
+                    for ($i = 1; $i -le $maxAttempts; $i++) {
+
+                        $existing = docker ps -aq --filter "name=^shop$"
+
+                        if (-not $existing) {
+                            $removed = $true
+                            break
+                        }
+
+                        Write-Host "Attempt $i : Removing existing shop container..."
+
+                        docker rm -f shop 2>&1 | Out-Host
+
+                        Start-Sleep -Seconds 3
                     }
+
+                    $remaining = docker ps -aq --filter "name=^shop$"
+
+                    if ($remaining) {
+                        throw "Could not remove the previous shop container. Check Docker Desktop."
+                    }
+
+                    Write-Host "Previous container removed successfully."
                 '''
-        
-                // Start new container
-                bat 'docker run -d --name shop -p 5000:5000 shop-system:latest'
-        
-                // Wait for application startup
-                powershell 'Start-Sleep -Seconds 10'
-        
-                // Verify container is running
+
+                bat 'docker run -d --name %CONTAINER% -p %PORT%:5000 %IMAGE%:latest'
+
+                powershell '''
+                    Start-Sleep -Seconds 10
+
+                    $running = docker inspect shop --format "{{.State.Running}}"
+
+                    if ($running -ne "true") {
+                        docker logs shop
+                        throw "Shop container failed to start."
+                    }
+
+                    Write-Host "Shop application is running."
+                '''
+
                 bat 'docker ps --filter "name=shop"'
             }
         }
@@ -95,9 +123,9 @@ pipeline {
         }
 
         failure {
-            echo 'Pipeline failed! Checking Docker logs...'
+            echo 'Pipeline failed. Checking Docker container logs...'
 
-            bat 'docker logs %CONTAINER% 2>NUL || exit /b 0'
+            bat 'docker logs shop 2>NUL || exit /b 0'
         }
 
         always {
