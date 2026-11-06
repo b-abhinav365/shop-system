@@ -1,0 +1,26 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Online Shopping System</title>
+<style>body{font-family:sans-serif;max-width:760px;margin:2rem auto}input,button{margin:3px;padding:6px}fieldset{margin:1rem 0}pre{background:#eee;padding:8px;white-space:pre-wrap}</style></head><body>
+<h2>Online Shopping &amp; Order Management</h2>
+<fieldset><legend>Account</legend><input id="user" placeholder="username"><input id="pass" type="password" placeholder="password">
+<button onclick="call('POST','/api/register',{username:user.value,password:pass.value})">Register</button>
+<button onclick="call('POST','/api/login',{username:user.value,password:pass.value})">Login</button>
+<button onclick="call('POST','/api/logout')">Logout</button></fieldset>
+<fieldset><legend>Catalogue</legend><input id="query" placeholder="search products">
+<button onclick="call('GET','/api/products/search?q='+encodeURIComponent(query.value))">Search</button>
+<button onclick="call('GET','/api/products')">Show All Products</button></fieldset>
+<fieldset><legend>Cart</legend><input id="pid" type="number" placeholder="product id"><input id="qty" type="number" placeholder="quantity" value="1">
+<button onclick="call('POST','/api/cart',{product_id:+pid.value,qty:+qty.value})">Add to Cart</button>
+<button onclick="call('PUT','/api/cart/'+pid.value,{qty:+qty.value})">Update Qty</button>
+<button onclick="call('DELETE','/api/cart/'+pid.value)">Remove</button>
+<button onclick="call('GET','/api/cart')">View Cart</button>
+<button onclick="call('POST','/api/checkout')">Checkout</button>
+<button onclick="call('GET','/api/orders')">Order History</button></fieldset>
+<fieldset><legend>Admin: product management</legend><input id="pn" placeholder="name"><input id="pp" type="number" placeholder="price"><input id="ps" type="number" placeholder="stock"><input id="pc" placeholder="category">
+<button onclick="call('POST','/api/admin/products',{name:pn.value,price:+pp.value,stock:+ps.value,category:pc.value})">Add Product</button>
+<button onclick="call('PUT','/api/admin/products/'+pid.value,{name:pn.value,price:pp.value?+pp.value:undefined,stock:ps.value?+ps.value:undefined})">Update Product</button>
+<button onclick="call('DELETE','/api/admin/products/'+pid.value)">Delete Product</button></fieldset>
+<pre id="o"></pre>
+<script>
+async function call(m,u,b){const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});
+document.getElementById('o').textContent=JSON.stringify(await r.json(),null,2);}
+</script></body></html>
