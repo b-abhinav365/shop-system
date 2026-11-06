@@ -60,13 +60,23 @@ pipeline {
             steps {
                 echo 'Deploying Shop System...'
 
-                bat 'docker rm -f %CONTAINER% 2>NUL || ver >NUL'
-
-                bat 'docker run -d --name %CONTAINER% -p %PORT%:5000 %IMAGE%:latest'
-
+                // Remove existing container if present
+                powershell '''
+                    $existing = docker ps -aq --filter "name=^shop$"
+        
+                    if ($existing) {
+                        docker rm -f shop
+                    }
+                '''
+        
+                // Start new container
+                bat 'docker run -d --name shop -p 5000:5000 shop-system:latest'
+        
+                // Wait for application startup
                 powershell 'Start-Sleep -Seconds 10'
-
-                bat 'docker ps --filter "name=%CONTAINER%"'
+        
+                // Verify container is running
+                bat 'docker ps --filter "name=shop"'
             }
         }
 
